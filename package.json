@@ -18,7 +18,9 @@
 	},
 	"scripts": {
 		"start": "http-server",
-		"test": "mocha test/test.js --timeout 20000"
+		"example:esp12": "node examples/esp12_viewer/server.js",
+		"test": "mocha test/test.js --timeout 20000",
+		"test:esp12-server": "mocha test/esp12_example_server.test.js --timeout 10000"
 	},
 	"dependencies": {},
 	"browser": {
