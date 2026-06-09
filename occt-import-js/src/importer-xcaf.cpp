@@ -4,6 +4,7 @@
 #include <TopExp_Explorer.hxx>
 #include <TopoDS.hxx>
 #include <TopoDS_Face.hxx>
+#include <NCollection_Sequence.hxx>
 #include <TDF_ChildIterator.hxx>
 #include <TDocStd_Document.hxx>
 #include <TDataStd_Name.hxx>
@@ -382,7 +383,7 @@ Importer::Result ImporterXcaf::LoadFile (const std::vector<std::uint8_t>& fileCo
     shapeTool = XCAFDoc_DocumentTool::ShapeTool (mainLabel);
     colorTool = XCAFDoc_DocumentTool::ColorTool (mainLabel);
 
-    TDF_LabelSequence labels;
+    NCollection_Sequence<TDF_Label> labels;
     shapeTool->GetFreeShapes (labels);
     if (labels.IsEmpty ()) {
         return Importer::Result::ImportFailed;
