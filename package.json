@@ -1,6 +1,6 @@
 {
 	"name": "occt-import-js",
-	"version": "0.0.24",
+	"version": "0.0.25",
 	"description": "Javascript interface for the occt library.",
 	"license": "LGPL-2.1",
 	"main": "./dist/occt-import-js.js",
@@ -18,8 +18,9 @@
 	},
 	"scripts": {
 		"start": "http-server",
+		"rebuild:dist": "node tools/rebuild_dist.js",
 		"example:esp12": "node examples/esp12_viewer/server.js",
-		"test": "mocha test/test.js test/wasm_build_config.test.js --timeout 20000",
+		"test": "mocha test/test.js test/wasm_build_config.test.js test/rebuild_dist_script.test.js --timeout 20000",
 		"test:esp12-server": "mocha test/esp12_example_server.test.js --timeout 10000"
 	},
 	"dependencies": {},

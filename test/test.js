@@ -1,16 +1,55 @@
 var fs = require ('fs');
+var os = require ('os');
 var path = require ('path');
+var url = require ('url');
 var assert = require ('assert');
 
-var occtimportjs = require ('../build/wasm/Release/occt-import-js.js')();
-
+var buildDir = path.join (__dirname, '..', 'build', 'wasm', 'Release');
+var modulePath = path.join (buildDir, 'occt-import-js.js');
+var wasmPath = path.join (buildDir, 'occt-import-js.wasm');
+var testModuleDir = path.join (os.tmpdir (), 'occt-import-js-tests');
+var testModulePath = path.join (testModuleDir, 'occt-import-js.mjs');
+var occtimportjsFactory = null;
 var occt = null;
+
+async function LoadOcctImportJs ()
+{
+    if (occtimportjsFactory !== null) {
+        return occtimportjsFactory;
+    }
+
+    fs.mkdirSync (testModuleDir, { recursive : true });
+    fs.copyFileSync (modulePath, testModulePath);
+    occtimportjsFactory = (await import (url.pathToFileURL (testModulePath).href)).default;
+    return occtimportjsFactory;
+}
+
+async function CreateOcctInstance ()
+{
+    let occtimportjs = await LoadOcctImportJs ();
+    return occtimportjs ({
+        wasmBinary : fs.readFileSync (wasmPath)
+    });
+}
+
 before (async function () {
     if (occt !== null) {
         return;
     }
-    occt = await occtimportjs;
+    occt = await CreateOcctInstance ();
 });
+
+function ColorToHex (color)
+{
+    if (color === null || color === undefined) {
+        return null;
+    }
+
+    return '#' + color.map (function (channel) {
+        let value = Math.round (Math.max (0.0, Math.min (1.0, channel)) * 255.0);
+        return value.toString (16).padStart (2, '0');
+    }).join ('');
+}
 
 function LoadFile (format, fileUrl)
 {
@@ -40,6 +79,26 @@ function LoadStepFileWithParams (fileUrl, params)
 {
     let fileContent = fs.readFileSync (fileUrl);
     return occt.ReadStepFile (fileContent, params);
+}
+
+function GetPositionBounds (positions)
+{
+    let min = [Infinity, Infinity, Infinity];
+    let max = [-Infinity, -Infinity, -Infinity];
+    for (let i = 0; i < positions.length; i += 3) {
+        for (let axis = 0; axis < 3; axis++) {
+            min[axis] = Math.min (min[axis], positions[i + axis]);
+            max[axis] = Math.max (max[axis], positions[i + axis]);
+        }
+    }
+
+    return {
+        min : min,
+        max : max,
+        size : max.map (function (value, index) {
+            return value - min[index];
+        })
+    };
 }
 
 describe ('Step Import', function () {
@@ -218,6 +277,89 @@ it ('cube-fcstd', function () {
     ]);
 });
 
+it ('uses typed geometry arrays', function () {
+    let result = LoadStepFile ('./test/testfiles/cube-fcstd/cube.step');
+    assert (result.success);
+
+    let mesh = result.meshes[0];
+    assert (mesh.attributes.position.array instanceof Float32Array);
+    assert (mesh.attributes.normal.array instanceof Float32Array);
+    assert (mesh.index.array instanceof Uint32Array);
+});
+
+it ('reports mesh counts and bounds metadata', function () {
+    let result = LoadStepFileWithParams ('./test/testfiles/cube-fcstd/cube.step', {
+        includeBrepFaces : false
+    });
+    assert (result.success);
+
+    let mesh = result.meshes[0];
+    assert.strictEqual (mesh.vertex_count, mesh.attributes.position.array.length / 3);
+    assert.strictEqual (mesh.triangle_count, mesh.index.array.length / 3);
+    assert.deepStrictEqual (mesh.bounds, GetPositionBounds (mesh.attributes.position.array));
+});
+
+it ('reports compact brep face runs', function () {
+    let result = LoadStepFile ('./test/testfiles/cube-fcstd/cube.step');
+    assert (result.success);
+
+    assert.deepStrictEqual (result.meshes[0].brep_face_runs, [
+        { first: 0, last: 1, color: [ 1, 0, 0 ] },
+        { first: 2, last: 5, color: null },
+        { first: 6, last: 7, color: [ 0, 0, 1 ] },
+        { first: 8, last: 9, color: null },
+        { first: 10, last: 11, color: [ 0, 0.4019778072834015, 0 ] }
+    ]);
+});
+
+it ('can omit full brep face export while keeping compact runs', function () {
+    let result = LoadStepFileWithParams ('./test/testfiles/cube-fcstd/cube.step', {
+        includeBrepFaces : false
+    });
+    assert (result.success);
+
+    let mesh = result.meshes[0];
+    assert.strictEqual (mesh.brep_faces, undefined);
+    assert.strictEqual (mesh.brep_face_count, 6);
+    assert.strictEqual (mesh.colored_brep_face_count, 3);
+    assert.deepStrictEqual (mesh.brep_face_runs, [
+        { first: 0, last: 1, color: [ 1, 0, 0 ] },
+        { first: 2, last: 5, color: null },
+        { first: 6, last: 7, color: [ 0, 0, 1 ] },
+        { first: 8, last: 9, color: null },
+        { first: 10, last: 11, color: [ 0, 0.4019778072834015, 0 ] }
+    ]);
+});
+
+it ('esp12 face presentation colors', async function () {
+    let isolatedOcct = await CreateOcctInstance ();
+    let fileContent = fs.readFileSync ('./examples/esp12_viewer/ESP_12.step');
+    let result = isolatedOcct.ReadStepFile (fileContent, null);
+    assert (result.success);
+
+    let coloredFaces = 0;
+    let board = null;
+    for (let mesh of result.meshes) {
+        if (mesh.name === 'Board') {
+            board = mesh;
+        }
+        for (let face of mesh.brep_faces || []) {
+            if (face.color !== null && face.color !== undefined) {
+                coloredFaces += 1;
+            }
+        }
+    }
+
+    assert (coloredFaces > 2000);
+    assert (board !== null);
+
+    let boardFaceColors = new Set ((board.brep_faces || []).map (function (face) {
+        return ColorToHex (face.color);
+    }));
+    assert (boardFaceColors.has ('#020a25'));
+    assert (boardFaceColors.has ('#edbe51'));
+});
+
 it ('conical-surface', function () {
     let result = LoadStepFile ('./test/testfiles/conical-surface/conical-surface.step');
     assert (result.success);
@@ -233,7 +375,7 @@ it ('conical-surface', function () {
         ]
     });
     assert.strictEqual (result.meshes.length, 1);
-    assert.equal (3954, result.meshes[0].index.array.length);
+    assert.equal (1665, result.meshes[0].index.array.length);
 });
 
 });

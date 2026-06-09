@@ -11,6 +11,49 @@
 #include <Quantity_Color.hxx>
 #include <BRep_Tool.hxx>
 #include <XCAFDoc_DocumentTool.hxx>
+#include <XCAFPrs.hxx>
+#include <XCAFPrs_Style.hxx>
+#include <TopTools_ShapeMapHasher.hxx>
+
+using StyleSettings = NCollection_IndexedDataMap<TopoDS_Shape, XCAFPrs_Style, TopTools_ShapeMapHasher>;
+
+static Color QuantityColorToColor (const Quantity_Color& qColor)
+{
+    return Color (qColor.Red (), qColor.Green (), qColor.Blue ());
+}
+
+static bool GetStyleColor (const XCAFPrs_Style& style, Color& color)
+{
+    if (!style.IsVisible ()) {
+        return false;
+    }
+
+    if (style.IsSetColorSurf ()) {
+        color = QuantityColorToColor (style.GetColorSurf ());
+        return true;
+    }
+
+    if (!style.Material ().IsNull () && !style.Material ()->IsEmpty ()) {
+        color = QuantityColorToColor (style.Material ()->BaseColor ().GetRGB ());
+        return true;
+    }
+
+    if (style.IsSetColorCurv ()) {
+        color = QuantityColorToColor (style.GetColorCurv ());
+        return true;
+    }
+
+    return false;
+}
+
+static bool GetStyleSettingsColor (const TopoDS_Shape& shape, const StyleSettings& styleSettings, Color& color)
+{
+    XCAFPrs_Style style;
+    if (!styleSettings.FindFromKey (shape, style)) {
+        return false;
+    }
+    return GetStyleColor (style, color);
+}
 
 static std::string GetLabelNameNoRef (const TDF_Label& label)
 {
@@ -57,7 +100,7 @@ static bool GetLabelColorNoRef (const TDF_Label& label, const Handle (XCAFDoc_Co
     Quantity_Color qColor;
     for (XCAFDoc_ColorType colorType : colorTypes) {
         if (colorTool->GetColor (label, colorType, qColor)) {
-            color = Color (qColor.Red (), qColor.Green (), qColor.Blue ());
+            color = QuantityColorToColor (qColor);
             return true;
         }
     }
@@ -98,32 +141,38 @@ static bool IsFreeShape (const TDF_Label& label, const Handle (XCAFDoc_ShapeTool
 class XcafFace : public OcctFace
 {
 public:
-    XcafFace (const TopoDS_Face& face, const Handle (XCAFDoc_ShapeTool)& shapeTool, const Handle (XCAFDoc_ColorTool)& colorTool) :
+    XcafFace (const TopoDS_Face& face, const Handle (XCAFDoc_ShapeTool)& shapeTool, const Handle (XCAFDoc_ColorTool)& colorTool, const StyleSettings& styleSettings) :
         OcctFace (face),
         shapeTool (shapeTool),
-        colorTool (colorTool)
+        colorTool (colorTool),
+        styleSettings (styleSettings)
     {
 
     }
 
     virtual bool GetColor (Color& color) const override
     {
+        if (GetStyleSettingsColor ((const TopoDS_Shape&) face, styleSettings, color)) {
+            return true;
+        }
         return GetShapeColor ((const TopoDS_Shape&) face, shapeTool, colorTool, color);
     }
 
 private:
     const Handle (XCAFDoc_ShapeTool)& shapeTool;
     const Handle (XCAFDoc_ColorTool)& colorTool;
+    const StyleSettings& styleSettings;
 };
 
 class XcafShapeMesh : public Mesh
 {
 public:
-    XcafShapeMesh (const TopoDS_Shape& shape, const Handle (XCAFDoc_ShapeTool)& shapeTool, const Handle (XCAFDoc_ColorTool)& colorTool) :
+    XcafShapeMesh (const TopoDS_Shape& shape, const Handle (XCAFDoc_ShapeTool)& shapeTool, const Handle (XCAFDoc_ColorTool)& colorTool, const StyleSettings& styleSettings) :
         Mesh (),
         shape (shape),
         shapeTool (shapeTool),
-        colorTool (colorTool)
+        colorTool (colorTool),
+        styleSettings (styleSettings)
     {
 
     }
@@ -135,6 +184,9 @@ public:
 
     virtual bool GetColor (Color& color) const override
     {
+        if (GetStyleSettingsColor (shape, styleSettings, color)) {
+            return true;
+        }
         return GetShapeColor (shape, shapeTool, colorTool, color);
     }
 
@@ -142,7 +194,7 @@ public:
     {
         for (TopExp_Explorer ex (shape, TopAbs_FACE); ex.More (); ex.Next ()) {
             const TopoDS_Face& face = TopoDS::Face (ex.Current ());
-            XcafFace outputFace (face, shapeTool, colorTool);
+            XcafFace outputFace (face, shapeTool, colorTool, styleSettings);
             onFace (outputFace);
         }
     }
@@ -151,16 +203,18 @@ private:
     const TopoDS_Shape& shape;
     const Handle (XCAFDoc_ShapeTool)& shapeTool;
     const Handle (XCAFDoc_ColorTool)& colorTool;
+    const StyleSettings& styleSettings;
 };
 
 class XcafStandaloneFacesMesh : public Mesh
 {
 public:
-    XcafStandaloneFacesMesh (const TopoDS_Shape& shape, const Handle (XCAFDoc_ShapeTool)& shapeTool, const Handle (XCAFDoc_ColorTool)& colorTool) :
+    XcafStandaloneFacesMesh (const TopoDS_Shape& shape, const Handle (XCAFDoc_ShapeTool)& shapeTool, const Handle (XCAFDoc_ColorTool)& colorTool, const StyleSettings& styleSettings) :
         Mesh (),
         shape (shape),
         shapeTool (shapeTool),
-        colorTool (colorTool)
+        colorTool (colorTool),
+        styleSettings (styleSettings)
     {
 
     }
@@ -185,7 +239,7 @@ public:
     {
         for (TopExp_Explorer ex (shape, TopAbs_FACE, TopAbs_SHELL); ex.More (); ex.Next ()) {
             const TopoDS_Face& face = TopoDS::Face (ex.Current ());
-            XcafFace outputFace (face, shapeTool, colorTool);
+            XcafFace outputFace (face, shapeTool, colorTool, styleSettings);
             onFace (outputFace);
         }
     }
@@ -194,6 +248,7 @@ private:
     const TopoDS_Shape& shape;
     const Handle (XCAFDoc_ShapeTool)& shapeTool;
     const Handle (XCAFDoc_ColorTool)& colorTool;
+    const StyleSettings& styleSettings;
 };
 
 class XcafNode : public Node
@@ -273,28 +328,31 @@ public:
         }
 
         TopoDS_Shape shape = shapeTool->GetShape (label);
-        EnumerateShapeMeshes (shape, onMesh);
+        StyleSettings styleSettings;
+        TopLoc_Location location;
+        XCAFPrs::CollectStyleSettings (label, location, styleSettings);
+        EnumerateShapeMeshes (shape, styleSettings, onMesh);
     }
 
 private:
-    void EnumerateShapeMeshes (const TopoDS_Shape& shape, const std::function<void (const Mesh&)>& onMesh) const
+    void EnumerateShapeMeshes (const TopoDS_Shape& shape, const StyleSettings& styleSettings, const std::function<void (const Mesh&)>& onMesh) const
     {
         // Enumerate solids
         for (TopExp_Explorer ex (shape, TopAbs_SOLID); ex.More (); ex.Next ()) {
             const TopoDS_Shape& currentShape = ex.Current ();
-            XcafShapeMesh outputShapeMesh (currentShape, shapeTool, colorTool);
+            XcafShapeMesh outputShapeMesh (currentShape, shapeTool, colorTool, styleSettings);
             onMesh (outputShapeMesh);
         }
 
         // Enumerate shells that are not part of a solid
         for (TopExp_Explorer ex (shape, TopAbs_SHELL, TopAbs_SOLID); ex.More (); ex.Next ()) {
             const TopoDS_Shape& currentShape = ex.Current ();
-            XcafShapeMesh outputShapeMesh (currentShape, shapeTool, colorTool);
+            XcafShapeMesh outputShapeMesh (currentShape, shapeTool, colorTool, styleSettings);
             onMesh (outputShapeMesh);
         }
 
         // Create a mesh from faces that are not part of a shell
-        XcafStandaloneFacesMesh standaloneFacesMesh (shape, shapeTool, colorTool);
+        XcafStandaloneFacesMesh standaloneFacesMesh (shape, shapeTool, colorTool, styleSettings);
         if (standaloneFacesMesh.HasFaces ()) {
             onMesh (standaloneFacesMesh);
         }

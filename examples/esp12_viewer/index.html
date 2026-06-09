@@ -9,7 +9,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/three@0.138.3/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.138.3/examples/js/controls/OrbitControls.js"></script>
-    <script type="text/javascript" src="../../dist/occt-import-js.js"></script>
 
     <style>
         :root
@@ -385,22 +384,28 @@
         </section>
     </main>
 
-    <script type="text/javascript">
+    <script type="module">
+        import occtimportjs from '../../dist/occt-import-js.js';
+
         var ModelUrl = 'ESP_12.step';
         var ImportParams = {
             linearUnit : 'millimeter',
             linearDeflectionType : 'bounding_box_ratio',
             linearDeflection : 0.001,
-            angularDeflection : 0.5
+            angularDeflection : 0.5,
+            includeBrepFaces : false
         };
+        var ShowEdges = false;
 
         var SceneState = {
             renderer : null,
             camera : null,
             controls : null,
             scene : null,
-            model : null
+            model : null,
+            renderRequested : false
         };
+        var MaterialCache = {};
 
         function FormatNumber (value)
         {
@@ -419,7 +424,7 @@
 
         function FormatBounds (bounds)
         {
-            return bounds.map (function (value) {
+            return bounds.size.map (function (value) {
                 return value.toFixed (value >= 10.0 ? 2 : 3);
             }).join (' x ');
         }
@@ -488,6 +493,39 @@
             }, 0);
         }
 
+        function MergeBounds (min, max, bounds)
+        {
+            for (var axis = 0; axis < 3; axis++) {
+                min[axis] = Math.min (min[axis], bounds.min[axis]);
+                max[axis] = Math.max (max[axis], bounds.max[axis]);
+            }
+        }
+
+        function CalculateMeshBounds (mesh)
+        {
+            if (mesh.bounds) {
+                return mesh.bounds;
+            }
+
+            var min = [Infinity, Infinity, Infinity];
+            var max = [-Infinity, -Infinity, -Infinity];
+            var positions = mesh.attributes.position.array;
+            for (var i = 0; i < positions.length; i += 3) {
+                for (var axis = 0; axis < 3; axis++) {
+                    min[axis] = Math.min (min[axis], positions[i + axis]);
+                    max[axis] = Math.max (max[axis], positions[i + axis]);
+                }
+            }
+
+            return {
+                min : min,
+                max : max,
+                size : max.map (function (value, index) {
+                    return value - min[index];
+                })
+            };
+        }
+
         function AnalyzeResult (result, fileBytes, renderTime)
         {
             var min = [Infinity, Infinity, Infinity];
@@ -498,30 +536,43 @@
             var colors = [];
 
             result.meshes.forEach (function (mesh) {
-                var positions = mesh.attributes.position.array;
-                var indices = mesh.index.array;
+                triangles += mesh.triangle_count !== undefined ? mesh.triangle_count : mesh.index.array.length / 3;
+                vertices += mesh.vertex_count !== undefined ? mesh.vertex_count : mesh.attributes.position.array.length / 3;
+                var meshColor = DisplayColorHex (mesh);
+                AddColor (colors, meshColor);
+                MergeBounds (min, max, CalculateMeshBounds (mesh));
 
-                triangles += indices.length / 3;
-                vertices += positions.length / 3;
-                AddColor (colors, DisplayColorHex (mesh));
-
-                for (var i = 0; i < positions.length; i += 3) {
-                    for (var axis = 0; axis < 3; axis++) {
-                        min[axis] = Math.min (min[axis], positions[i + axis]);
-                        max[axis] = Math.max (max[axis], positions[i + axis]);
-                    }
+                if (mesh.colored_brep_face_count !== undefined) {
+                    coloredFaces += mesh.colored_brep_face_count;
+                } else {
+                    (mesh.brep_faces || []).forEach (function (face) {
+                        if (face.color) {
+                            coloredFaces += 1;
+                        }
+                    });
                 }
 
-                (mesh.brep_faces || []).forEach (function (face) {
+                (mesh.brep_face_runs || mesh.brep_faces || []).forEach (function (face) {
                     if (face.color) {
-                        coloredFaces += 1;
+                        AddColor (colors, ColorArrayToHex (face.color));
+                    } else {
+                        AddColor (colors, meshColor);
                     }
                 });
             });
 
-            var bounds = max.map (function (value, index) {
-                return value - min[index];
-            });
+            if (min[0] === Infinity) {
+                min = [0.0, 0.0, 0.0];
+                max = [0.0, 0.0, 0.0];
+            }
+
+            var bounds = {
+                min : min,
+                max : max,
+                size : max.map (function (value, index) {
+                    return value - min[index];
+                })
+            };
 
             return {
                 fileBytes : fileBytes,
@@ -537,25 +588,67 @@
             };
         }
 
+        function GetSharedMaterial (color)
+        {
+            if (MaterialCache[color] === undefined) {
+                MaterialCache[color] = new THREE.MeshLambertMaterial ({
+                    color : new THREE.Color (color),
+                    side : THREE.DoubleSide
+                });
+            }
+            return MaterialCache[color];
+        }
+
         function BuildMesh (geometryMesh, showEdges)
         {
             var geometry = new THREE.BufferGeometry ();
             var positions = geometryMesh.attributes.position.array;
-            var indices = Uint32Array.from (geometryMesh.index.array);
+            var indices = geometryMesh.index.array;
 
-            geometry.setAttribute ('position', new THREE.Float32BufferAttribute (positions, 3));
+            geometry.setAttribute ('position', new THREE.BufferAttribute (positions, 3));
             if (geometryMesh.attributes.normal) {
-                geometry.setAttribute ('normal', new THREE.Float32BufferAttribute (geometryMesh.attributes.normal.array, 3));
+                geometry.setAttribute ('normal', new THREE.BufferAttribute (geometryMesh.attributes.normal.array, 3));
             }
             geometry.setIndex (new THREE.BufferAttribute (indices, 1));
             geometry.name = geometryMesh.name;
 
-            var material = new THREE.MeshLambertMaterial ({
-                color : new THREE.Color (DisplayColorHex (geometryMesh)),
-                side : THREE.DoubleSide
-            });
+            var materials = [];
+            var materialIndexByColor = {};
 
-            var mesh = new THREE.Mesh (geometry, material);
+            function GetMaterialIndex (color)
+            {
+                if (materialIndexByColor[color] !== undefined) {
+                    return materialIndexByColor[color];
+                }
+
+                var materialIndex = materials.length;
+                materials.push (GetSharedMaterial (color));
+                materialIndexByColor[color] = materialIndex;
+                return materialIndex;
+            }
+
+            var defaultColor = DisplayColorHex (geometryMesh);
+            var defaultMaterialIndex = GetMaterialIndex (defaultColor);
+            var brepFaceRuns = geometryMesh.brep_face_runs || geometryMesh.brep_faces || [];
+            if (brepFaceRuns.length > 0) {
+                brepFaceRuns.forEach (function (face) {
+                    if (face.last < face.first) {
+                        return;
+                    }
+
+                    var faceColor = face.color ? ColorArrayToHex (face.color) : defaultColor;
+                    var faceMaterialIndex = GetMaterialIndex (faceColor);
+                    geometry.addGroup (
+                        face.first * 3,
+                        (face.last - face.first + 1) * 3,
+                        faceMaterialIndex
+                    );
+                });
+            } else {
+                geometry.addGroup (0, indices.length, defaultMaterialIndex);
+            }
+
+            var mesh = new THREE.Mesh (geometry, materials);
             mesh.name = geometryMesh.name;
 
             var edges = null;
@@ -581,7 +674,7 @@
             var group = new THREE.Group ();
 
             result.meshes.forEach (function (resultMesh) {
-                var builtMesh = BuildMesh (resultMesh, true);
+                var builtMesh = BuildMesh (resultMesh, ShowEdges);
                 group.add (builtMesh.mesh);
                 if (builtMesh.edges) {
                     group.add (builtMesh.edges);
@@ -603,6 +696,9 @@
                 antialias : true,
                 alpha : true
             });
+            if (SceneState.renderer.debug) {
+                SceneState.renderer.debug.checkShaderErrors = false;
+            }
             SceneState.renderer.setPixelRatio (Math.min (window.devicePixelRatio || 1, 2));
             SceneState.renderer.setSize (width, height, false);
             SceneState.camera = new THREE.PerspectiveCamera (38, width / height, 0.01, 1000.0);
@@ -623,16 +719,19 @@
             SceneState.controls.enableDamping = true;
             SceneState.controls.dampingFactor = 0.08;
             SceneState.controls.enablePan = false;
+            SceneState.controls.addEventListener ('change', RequestRender);
         }
 
-        function FrameModel (model)
+        function FrameModel (model, bounds)
         {
-            var box = new THREE.Box3 ().setFromObject (model);
-            var center = box.getCenter (new THREE.Vector3 ());
-            var size = box.getSize (new THREE.Vector3 ());
-            var maxSize = Math.max (size.x, size.y, size.z);
+            var center = new THREE.Vector3 (
+                (bounds.min[0] + bounds.max[0]) / 2.0,
+                (bounds.min[1] + bounds.max[1]) / 2.0,
+                (bounds.min[2] + bounds.max[2]) / 2.0
+            );
+            var maxSize = Math.max (bounds.size[0], bounds.size[1], bounds.size[2], 1.0);
 
-            model.position.sub (center);
+            model.position.set (-center.x, -center.y, -center.z);
 
             SceneState.camera.near = Math.max (0.01, maxSize / 100.0);
             SceneState.camera.far = maxSize * 100.0;
@@ -648,11 +747,24 @@
             SceneState.controls.update ();
         }
 
-        function RenderLoop ()
+        function RenderFrame ()
         {
-            SceneState.controls.update ();
+            SceneState.renderRequested = false;
+            var needsAnotherFrame = SceneState.controls.update ();
             SceneState.renderer.render (SceneState.scene, SceneState.camera);
-            window.requestAnimationFrame (RenderLoop);
+            if (needsAnotherFrame) {
+                RequestRender ();
+            }
+        }
+
+        function RequestRender ()
+        {
+            if (SceneState.renderRequested || !SceneState.renderer) {
+                return;
+            }
+
+            SceneState.renderRequested = true;
+            window.requestAnimationFrame (RenderFrame);
         }
 
         function Resize ()
@@ -668,6 +780,7 @@
             SceneState.camera.aspect = width / height;
             SceneState.camera.updateProjectionMatrix ();
             SceneState.renderer.setSize (width, height, false);
+            RequestRender ();
         }
 
         function RenderStats (stats)
@@ -736,15 +849,15 @@
             }
 
             SetStatus ('Building render meshes');
+            var stats = AnalyzeResult (result, buffer.byteLength, 0.0);
             SceneState.model = BuildModel (result);
             SceneState.scene.add (SceneState.model);
-            FrameModel (SceneState.model);
+            FrameModel (SceneState.model, stats.bounds);
 
-            var renderTime = performance.now () - startTime;
-            var stats = AnalyzeResult (result, buffer.byteLength, renderTime);
+            stats.renderTime = performance.now () - startTime;
             RenderStats (stats);
             SetStatus ('Ready');
-            RenderLoop ();
+            RequestRender ();
         }
 
         window.addEventListener ('resize', Resize);

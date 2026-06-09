@@ -51,6 +51,41 @@ describe ('ESP_12 example server', function () {
         assert.match (response.body.toString ('utf8'), /occt-import-js/);
     });
 
+    it ('uses compact face runs and on-demand rendering in the viewer', async function () {
+        var response = await Get (baseUrl, '/examples/esp12_viewer/');
+        var html = response.body.toString ('utf8');
+
+        assert.strictEqual (response.statusCode, 200);
+        assert.match (html, /brep_face_runs/);
+        assert.match (html, /RequestRender/);
+        assert.doesNotMatch (html, /requestAnimationFrame \\(RenderLoop\\)/);
+    });
+
+    it ('avoids avoidable render mesh setup work in the viewer', async function () {
+        var response = await Get (baseUrl, '/examples/esp12_viewer/');
+        var html = response.body.toString ('utf8');
+
+        assert.strictEqual (response.statusCode, 200);
+        assert.match (html, /MaterialCache/);
+        assert.match (html, /GetSharedMaterial/);
+        assert.match (html, /materials\.push \(GetSharedMaterial \(color\)\)/);
+        assert.match (html, /mesh\.vertex_count/);
+        assert.match (html, /mesh\.triangle_count/);
+        assert.match (html, /mesh\.bounds/);
+        assert.match (html, /FrameModel \(SceneState\.model, stats\.bounds\)/);
+        assert.match (html, /BufferAttribute \(positions, 3\)/);
+        assert.match (html, /BufferAttribute \(indices, 1\)/);
+        assert.match (html, /ShowEdges = false/);
+        assert.match (html, /includeBrepFaces : false/);
+        assert.match (html, /colored_brep_face_count/);
+        assert.match (html, /checkShaderErrors = false/);
+        assert.doesNotMatch (html, /setFromObject/);
+        assert.doesNotMatch (html, /CreateTypedBufferAttribute/);
+        assert.doesNotMatch (html, /Uint32Array\\.from \\(geometryMesh\\.index\\.array\\)/);
+        assert.doesNotMatch (html, /Float32BufferAttribute \(positions/);
+        assert.doesNotMatch (html, /BuildMesh \\(resultMesh, true\\)/);
+    });
+
     it ('serves wasm with the required mime type', async function () {
         var response = await Get (baseUrl, '/dist/occt-import-js.wasm');
 

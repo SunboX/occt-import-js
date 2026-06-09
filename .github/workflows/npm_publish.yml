@@ -10,11 +10,18 @@ jobs:
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true
       - uses: actions/setup-node@v4
         with:
           node-version: '18.x'
           registry-url: 'https://registry.npmjs.org'
-      - run: npm install
+          cache: npm
+      - run: npm ci
+      - name: Get Emscripten
+        run: ./tools/setup_emscripten_win.bat
+      - name: Build dist
+        run: ./tools/build_wasm_win_dist.bat
       - run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
