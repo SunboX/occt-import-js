@@ -314,6 +314,8 @@ if (${EMSCRIPTEN})
 	target_compile_options (OcctImportJS PUBLIC -fexceptions)
 	target_compile_options (OcctImportJS PUBLIC -fwasm-exceptions)
 
+	target_link_options (OcctImportJS PUBLIC -sENVIRONMENT=web)
+	target_link_options (OcctImportJS PUBLIC -sEXPORT_ES6=1)
 	target_link_options (OcctImportJS PUBLIC -sMODULARIZE=1)
 	target_link_options (OcctImportJS PUBLIC -sEXPORT_NAME='occtimportjs')
 	target_link_options (OcctImportJS PUBLIC -sSTACK_SIZE=10MB)
