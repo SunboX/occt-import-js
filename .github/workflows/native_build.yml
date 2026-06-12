@@ -24,10 +24,10 @@ jobs:
         path: build/${{matrix.toolset}}/${{matrix.configuration}}/occt-import-js.lib
 
   build_mac:
-    runs-on: [macos-13]
+    runs-on: [macos-15-intel]
     strategy:
       matrix:
-        xcode: [14.2]
+        xcode: [16.4]
         configuration: [RelWithDebInfo]
     steps:
     - uses: actions/checkout@v4

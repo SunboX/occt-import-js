@@ -87,6 +87,26 @@ describe ('GitHub Actions CI configuration', function () {
         );
     });
 
+    it ('uses a supported Intel macOS runner image', function () {
+        var nativeBuildWorkflow = ReadWorkflow ('native_build.yml');
+
+        assert.doesNotMatch (
+            nativeBuildWorkflow,
+            /macos-13/,
+            'GitHub retired the macos-13 runner image.'
+        );
+        assert.match (
+            nativeBuildWorkflow,
+            /macos-15-intel/,
+            'Expected the native mac build to use the supported Intel macOS runner.'
+        );
+        assert.match (
+            nativeBuildWorkflow,
+            /xcode: \[16\.4\]/,
+            'Expected the mac build matrix to select an Xcode version available on macOS 15.'
+        );
+    });
+
     it ('runs Windows wasm batch scripts from a short workspace path', function () {
         var wasmBuildWorkflow = ReadWorkflow ('wasm_build.yml');
         var rebuildDistWorkflow = ReadWorkflow ('rebuild_dist.yml');
