@@ -2,18 +2,18 @@
 
 The [emscripten](https://emscripten.org) interface for [OpenCascade](https://www.opencascade.com) import functionalities. It runs entirely in the browser, and allows you to import brep, step and iges files and access the result in JSON format.
 
-[![npm version](https://badge.fury.io/js/occt-import-js.svg)](https://badge.fury.io/js/occt-import-js)
-[![WASM Build](https://github.com/kovacsv/occt-import-js/actions/workflows/wasm_build.yml/badge.svg)](https://github.com/kovacsv/occt-import-js/actions/workflows/wasm_build.yml)
-[![Native Build](https://github.com/kovacsv/occt-import-js/actions/workflows/native_build.yml/badge.svg)](https://github.com/kovacsv/occt-import-js/actions/workflows/native_build.yml)
+[![npm package](https://img.shields.io/npm/v/%40sunbox%2Focct-import-js?label=npm%20package)](https://www.npmjs.com/package/@sunbox/occt-import-js)
+[![WASM Build](https://github.com/SunboX/occt-import-js/actions/workflows/wasm_build.yml/badge.svg)](https://github.com/SunboX/occt-import-js/actions/workflows/wasm_build.yml)
+[![Native Build](https://github.com/SunboX/occt-import-js/actions/workflows/native_build.yml/badge.svg)](https://github.com/SunboX/occt-import-js/actions/workflows/native_build.yml)
 
 See it in action in [Online 3D Viewer](https://3dviewer.net/#model=https://dl.dropbox.com/s/utieopxrxwujgmd/as1_pe_203.stp), or check [this fiddle](https://jsfiddle.net/kovacsv/rzhq9gxj) for a code example.
 
 ## How to install?
 
-You can get occt-import-js from [npm](https://www.npmjs.com/package/occt-import-js):
+You can get `@sunbox/occt-import-js` from [npm](https://www.npmjs.com/package/@sunbox/occt-import-js):
 
 ```
-npm install occt-import-js
+npm install @sunbox/occt-import-js
 ```
 
 ## How to use?
@@ -62,11 +62,11 @@ occtimportjs ().then (async function (occt) {
 
 ### Use as a node.js module
 
-You should require the `occt-import-js` module in your script.
+You should require the `@sunbox/occt-import-js` module in your script.
 
 ```js
 let fs = require ('fs');
-const occtimportjs = require ('occt-import-js')();
+const occtimportjs = require ('@sunbox/occt-import-js')();
 
 occtimportjs.then ((occt) => {
     let fileUrl = '../test/testfiles/simple-basic-cube/cube.stp';
