@@ -18,7 +18,7 @@ jobs:
     - name: Build
       run: cmake --build build/${{matrix.toolset}} --config ${{matrix.configuration}}
     - name: Upload
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: OcctImportJS_VS_${{matrix.toolset}}_${{matrix.configuration}}
         path: build/${{matrix.toolset}}/${{matrix.configuration}}/occt-import-js.lib
@@ -41,7 +41,7 @@ jobs:
     - name: Build
       run: cmake --build build/${{matrix.xcode}} --config ${{matrix.configuration}}
     - name: Upload
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: OcctImportJS_Xcode_${{matrix.xcode}}_${{matrix.configuration}}
         path: build/${{matrix.xcode}}/${{matrix.configuration}}/libocct-import-js.a
@@ -53,7 +53,7 @@ jobs:
       with:
         submodules: true
     - name: Upload
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: Headers
         path: occt-import-js/src/*.hpp

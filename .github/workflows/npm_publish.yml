@@ -19,9 +19,23 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Get Emscripten
-        run: ./tools/setup_emscripten_win.bat
+        shell: cmd
+        run: |
+          subst W: "%GITHUB_WORKSPACE%"
+          W:
+          call tools\setup_emscripten_win.bat
+          set EXIT_CODE=%ERRORLEVEL%
+          subst W: /D
+          exit /b %EXIT_CODE%
       - name: Build dist
-        run: ./tools/build_wasm_win_dist.bat
+        shell: cmd
+        run: |
+          subst W: "%GITHUB_WORKSPACE%"
+          W:
+          call tools\build_wasm_win_dist.bat
+          set EXIT_CODE=%ERRORLEVEL%
+          subst W: /D
+          exit /b %EXIT_CODE%
       - run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}

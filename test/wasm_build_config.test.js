@@ -50,3 +50,53 @@ describe ('Wasm build configuration', function () {
         );
     });
 });
+
+describe ('GitHub Actions CI configuration', function () {
+    function ReadWorkflow (fileName)
+    {
+        return fs.readFileSync (
+            path.join (__dirname, '..', '.github', 'workflows', fileName),
+            'utf8'
+        );
+    }
+
+    function AssertRunsOnShortWindowsDrive (workflow, scriptName)
+    {
+        var scriptPattern = new RegExp (
+            'subst W: "%GITHUB_WORKSPACE%"[\\s\\S]*W:[\\s\\S]*tools\\\\' + scriptName.replace (/[.*+?^${}()|[\]\\]/g, '\\$&')
+        );
+        assert.match (
+            workflow,
+            scriptPattern,
+            'Expected ' + scriptName + ' to run from a short W: workspace path.'
+        );
+    }
+
+    it ('uses the supported upload-artifact action version', function () {
+        var nativeBuildWorkflow = ReadWorkflow ('native_build.yml');
+
+        assert.doesNotMatch (
+            nativeBuildWorkflow,
+            /actions\/upload-artifact@v3/,
+            'GitHub Actions hard-fails deprecated upload-artifact@v3 jobs.'
+        );
+        assert.match (
+            nativeBuildWorkflow,
+            /actions\/upload-artifact@v4/,
+            'Expected native build artifacts to be uploaded with upload-artifact@v4.'
+        );
+    });
+
+    it ('runs Windows wasm batch scripts from a short workspace path', function () {
+        var wasmBuildWorkflow = ReadWorkflow ('wasm_build.yml');
+        var rebuildDistWorkflow = ReadWorkflow ('rebuild_dist.yml');
+        var npmPublishWorkflow = ReadWorkflow ('npm_publish.yml');
+
+        AssertRunsOnShortWindowsDrive (wasmBuildWorkflow, 'setup_emscripten_win.bat');
+        AssertRunsOnShortWindowsDrive (wasmBuildWorkflow, 'build_wasm_win.bat');
+        AssertRunsOnShortWindowsDrive (rebuildDistWorkflow, 'setup_emscripten_win.bat');
+        AssertRunsOnShortWindowsDrive (rebuildDistWorkflow, 'build_wasm_win_dist.bat');
+        AssertRunsOnShortWindowsDrive (npmPublishWorkflow, 'setup_emscripten_win.bat');
+        AssertRunsOnShortWindowsDrive (npmPublishWorkflow, 'build_wasm_win_dist.bat');
+    });
+});

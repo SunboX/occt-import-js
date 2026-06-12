@@ -20,9 +20,23 @@ jobs:
       with:
         node-version: 18.x
     - name: Get Emscripten
-      run: ./tools/setup_emscripten_win.bat
+      shell: cmd
+      run: |
+        subst W: "%GITHUB_WORKSPACE%"
+        W:
+        call tools\setup_emscripten_win.bat
+        set EXIT_CODE=%ERRORLEVEL%
+        subst W: /D
+        exit /b %EXIT_CODE%
     - name: Build WASM
-      run: ./tools/build_wasm_win.bat Release
+      shell: cmd
+      run: |
+        subst W: "%GITHUB_WORKSPACE%"
+        W:
+        call tools\build_wasm_win.bat Release
+        set EXIT_CODE=%ERRORLEVEL%
+        subst W: /D
+        exit /b %EXIT_CODE%
     - name: Update Package
       run: npm install
     - name: Run Test
