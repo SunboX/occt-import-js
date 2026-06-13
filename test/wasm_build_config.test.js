@@ -94,6 +94,19 @@ describe ('Package metadata', function () {
             'https://npm.pkg.github.com'
         );
     });
+
+    it ('excludes the OCCT submodule from npm packages', function () {
+        var npmIgnore = fs.readFileSync (
+            path.join (__dirname, '..', '.npmignore'),
+            'utf8'
+        );
+
+        assert.match (
+            npmIgnore,
+            /^occt$/m,
+            'Expected npm packages to avoid bundling the full OCCT submodule.'
+        );
+    });
 });
 
 describe ('GitHub Actions CI configuration', function () {

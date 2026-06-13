@@ -1,5 +1,6 @@
 build
 node_modules
+occt
 __pycache__
 .idea
 .DS_Store
