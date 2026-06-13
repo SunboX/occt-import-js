@@ -49,6 +49,19 @@ describe ('Wasm build configuration', function () {
             'Expected the hot import path to avoid per-element embind conversion.'
         );
     });
+
+    it ('disables Windows min/max macros for MSVC native builds', function () {
+        var cmakeLists = fs.readFileSync (
+            path.join (__dirname, '..', 'CMakeLists.txt'),
+            'utf8'
+        );
+
+        assert.match (
+            cmakeLists,
+            /target_compile_definitions\s*\(\s*OcctImportJS[\s\S]*NOMINMAX/,
+            'Expected MSVC builds to define NOMINMAX before compiling OCCT Windows sources.'
+        );
+    });
 });
 
 describe ('GitHub Actions CI configuration', function () {

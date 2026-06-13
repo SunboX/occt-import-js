@@ -378,6 +378,7 @@ else ()
 endif ()
 
 target_compile_options (OcctImportJS PUBLIC -DOCCT_NO_PLUGINS)
+target_compile_definitions (OcctImportJS PUBLIC "$<$<CXX_COMPILER_ID:MSVC>:NOMINMAX>")
 target_include_directories (OcctImportJS PUBLIC	${OcctIncludeDirs})
 set_target_properties(OcctImportJS PROPERTIES OUTPUT_NAME occt-import-js)
 set_target_properties (OcctImportJS PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}")
