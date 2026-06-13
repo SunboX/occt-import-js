@@ -190,4 +190,80 @@ describe ('GitHub Actions CI configuration', function () {
         AssertRunsOnShortWindowsDrive (npmPublishWorkflow, 'setup_emscripten_win.bat');
         AssertRunsOnShortWindowsDrive (npmPublishWorkflow, 'build_wasm_win_dist.bat');
     });
+
+    it ('publishes the scoped package to GitHub Packages instead of npmjs', function () {
+        var npmPublishWorkflow = ReadWorkflow ('npm_publish.yml');
+
+        assert.match (
+            npmPublishWorkflow,
+            /name:\s*GitHub Packages Publish/,
+            'Expected the package publish workflow to target GitHub Packages.'
+        );
+        assert.match (
+            npmPublishWorkflow,
+            /packages:\s*write/,
+            'Expected the workflow token to have package publish permission.'
+        );
+        assert.match (
+            npmPublishWorkflow,
+            /registry-url:\s*'https:\/\/npm\.pkg\.github\.com'/,
+            'Expected setup-node to target the GitHub Packages npm registry.'
+        );
+        assert.match (
+            npmPublishWorkflow,
+            /scope:\s*'@sunbox'/,
+            'Expected setup-node to configure the @sunbox scope.'
+        );
+        assert.match (
+            npmPublishWorkflow,
+            /npm publish --registry=https:\/\/npm\.pkg\.github\.com/,
+            'Expected package publication to go to GitHub Packages.'
+        );
+        assert.match (
+            npmPublishWorkflow,
+            /NODE_AUTH_TOKEN:\s*\$\{\{secrets\.GITHUB_TOKEN\}\}/,
+            'Expected publication to authenticate with the repository GITHUB_TOKEN.'
+        );
+        assert.doesNotMatch (
+            npmPublishWorkflow,
+            /registry\.npmjs\.org|NPM_TOKEN/,
+            'Expected the workflow not to publish to the public npm registry.'
+        );
+    });
+
+    it ('uploads release build assets when a release is published', function () {
+        var nativeBuildWorkflow = ReadWorkflow ('native_build.yml');
+        var rebuildDistWorkflow = ReadWorkflow ('rebuild_dist.yml');
+
+        assert.match (
+            nativeBuildWorkflow,
+            /release:[\s\S]*types:\s*\[published\]/,
+            'Expected native builds to run for published releases.'
+        );
+        assert.match (
+            rebuildDistWorkflow,
+            /release:[\s\S]*types:\s*\[published\]/,
+            'Expected dist rebuilds to run for published releases.'
+        );
+        assert.match (
+            nativeBuildWorkflow,
+            /native-\$\{\{matrix\.toolset\}\}-\$\{\{matrix\.configuration\}\}\.zip[\s\S]*gh release upload \$env:RELEASE_TAG \$assetName --clobber/,
+            'Expected Windows native release assets to be uploaded to the release.'
+        );
+        assert.match (
+            nativeBuildWorkflow,
+            /native-xcode-\$\{\{matrix\.xcode\}\}-\$\{\{matrix\.configuration\}\}\.zip[\s\S]*gh release upload "\$RELEASE_TAG" "\$asset_name" --clobber/,
+            'Expected macOS native release assets to be uploaded to the release.'
+        );
+        assert.match (
+            nativeBuildWorkflow,
+            /headers\.zip[\s\S]*gh release upload "\$RELEASE_TAG" "\$asset_name" --clobber/,
+            'Expected header release assets to be uploaded to the release.'
+        );
+        assert.match (
+            rebuildDistWorkflow,
+            /dist\.zip[\s\S]*gh release upload \$env:RELEASE_TAG \$assetName --clobber/,
+            'Expected dist release assets to be uploaded to the release.'
+        );
+    });
 });

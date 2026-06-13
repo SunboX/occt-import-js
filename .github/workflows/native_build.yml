@@ -1,6 +1,13 @@
 name: Native Build
 
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
 
 jobs:
   build_win:
@@ -30,6 +37,16 @@ jobs:
       with:
         name: OcctImportJS_VS_${{matrix.toolset}}_${{matrix.configuration}}
         path: build/${{matrix.toolset}}/${{matrix.configuration}}/occt-import-js.lib
+    - name: Upload release asset
+      if: github.event_name == 'release'
+      shell: pwsh
+      env:
+        GH_TOKEN: ${{github.token}}
+        RELEASE_TAG: ${{github.event.release.tag_name}}
+      run: |
+        $assetName = "occt-import-js-$env:RELEASE_TAG-native-${{matrix.toolset}}-${{matrix.configuration}}.zip"
+        Compress-Archive -Path "build/${{matrix.toolset}}/${{matrix.configuration}}/occt-import-js.lib" -DestinationPath $assetName -Force
+        gh release upload $env:RELEASE_TAG $assetName --clobber
 
   build_mac:
     runs-on: [macos-15-intel]
@@ -53,6 +70,15 @@ jobs:
       with:
         name: OcctImportJS_Xcode_${{matrix.xcode}}_${{matrix.configuration}}
         path: build/${{matrix.xcode}}/${{matrix.configuration}}/libocct-import-js.a
+    - name: Upload release asset
+      if: github.event_name == 'release'
+      env:
+        GH_TOKEN: ${{github.token}}
+        RELEASE_TAG: ${{github.event.release.tag_name}}
+      run: |
+        asset_name="occt-import-js-${RELEASE_TAG}-native-xcode-${{matrix.xcode}}-${{matrix.configuration}}.zip"
+        zip -j "$asset_name" "build/${{matrix.xcode}}/${{matrix.configuration}}/libocct-import-js.a"
+        gh release upload "$RELEASE_TAG" "$asset_name" --clobber
 
   publish_headers:
     runs-on: [ubuntu-latest]
@@ -65,3 +91,12 @@ jobs:
       with:
         name: Headers
         path: occt-import-js/src/*.hpp
+    - name: Upload release asset
+      if: github.event_name == 'release'
+      env:
+        GH_TOKEN: ${{github.token}}
+        RELEASE_TAG: ${{github.event.release.tag_name}}
+      run: |
+        asset_name="occt-import-js-${RELEASE_TAG}-headers.zip"
+        zip -j "$asset_name" occt-import-js/src/*.hpp
+        gh release upload "$RELEASE_TAG" "$asset_name" --clobber

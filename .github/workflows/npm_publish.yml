@@ -1,9 +1,13 @@
-name: NPM Publish
+name: GitHub Packages Publish
 
 on:
-  push:
-    tags:
-      - '*'
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
 
 jobs:
   build:
@@ -15,7 +19,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '18.x'
-          registry-url: 'https://registry.npmjs.org'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@sunbox'
           cache: npm
       - run: npm ci
       - name: Get Emscripten
@@ -36,6 +41,7 @@ jobs:
           set EXIT_CODE=%ERRORLEVEL%
           subst W: /D
           exit /b %EXIT_CODE%
-      - run: npm publish
+      - name: Publish GitHub package
+        run: npm publish --registry=https://npm.pkg.github.com
         env:
-          NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
+          NODE_AUTH_TOKEN: ${{secrets.GITHUB_TOKEN}}

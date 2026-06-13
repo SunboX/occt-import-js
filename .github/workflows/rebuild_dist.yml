@@ -5,6 +5,11 @@ on:
     branches:
       - main
   workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
 
 jobs:
   rebuild-dist:
@@ -50,3 +55,13 @@ jobs:
           name: dist
           path: dist
           if-no-files-found: error
+      - name: Upload release asset
+        if: github.event_name == 'release'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{github.token}}
+          RELEASE_TAG: ${{github.event.release.tag_name}}
+        run: |
+          $assetName = "occt-import-js-$env:RELEASE_TAG-dist.zip"
+          Compress-Archive -Path "dist\*" -DestinationPath $assetName -Force
+          gh release upload $env:RELEASE_TAG $assetName --clobber
