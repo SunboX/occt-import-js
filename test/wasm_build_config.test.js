@@ -122,6 +122,11 @@ describe ('GitHub Actions CI configuration', function () {
 
         assert.match (
             nativeBuildWorkflow,
+            /fail-fast: false/,
+            'Expected native matrix jobs to keep running after one toolset fails.'
+        );
+        assert.match (
+            nativeBuildWorkflow,
             /vcvars64\.bat/,
             'Expected Windows native builds to enter an MSVC developer environment.'
         );
@@ -129,6 +134,11 @@ describe ('GitHub Actions CI configuration', function () {
             nativeBuildWorkflow,
             /-G Ninja/,
             'Expected Windows native builds to use Ninja instead of the Visual Studio generator.'
+        );
+        assert.match (
+            nativeBuildWorkflow,
+            /CMAKE_NINJA_FORCE_RESPONSE_FILE=ON/,
+            'Expected Ninja builds to use response files for the large OCCT compile commands.'
         );
         assert.doesNotMatch (
             nativeBuildWorkflow,
