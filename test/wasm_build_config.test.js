@@ -112,8 +112,33 @@ describe ('GitHub Actions CI configuration', function () {
 
         assert.match (
             nativeBuildWorkflow,
-            /cmake --build build\/\$\{\{matrix\.toolset\}\} --config \$\{\{matrix\.configuration\}\} --parallel 1/,
+            /cmake --build build[\\\/]\$\{\{matrix\.toolset\}\}(?: --config \$\{\{matrix\.configuration\}\})? --parallel 1/,
             'Expected Windows native builds to compile serially on GitHub-hosted runners.'
+        );
+    });
+
+    it ('uses Ninja for Windows native builds to avoid Visual Studio compiler batching', function () {
+        var nativeBuildWorkflow = ReadWorkflow ('native_build.yml');
+
+        assert.match (
+            nativeBuildWorkflow,
+            /vcvars64\.bat/,
+            'Expected Windows native builds to enter an MSVC developer environment.'
+        );
+        assert.match (
+            nativeBuildWorkflow,
+            /-G Ninja/,
+            'Expected Windows native builds to use Ninja instead of the Visual Studio generator.'
+        );
+        assert.doesNotMatch (
+            nativeBuildWorkflow,
+            /Visual Studio 17 2022/,
+            'Expected Windows native builds to avoid Visual Studio project compiler batching.'
+        );
+        assert.match (
+            nativeBuildWorkflow,
+            /CMAKE_ARCHIVE_OUTPUT_DIRECTORY=.*build[\\\/]\$\{\{matrix\.toolset\}\}[\\\/]\$\{\{matrix\.configuration\}\}/,
+            'Expected Ninja builds to keep the uploaded .lib artifact path stable.'
         );
     });
 

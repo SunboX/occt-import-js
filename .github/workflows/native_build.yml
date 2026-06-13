@@ -7,16 +7,23 @@ jobs:
     runs-on: [windows-2022]
     strategy:
       matrix:
-        toolset: [v142, v143]
-        configuration: [RelWithDebInfo]
+        include:
+          - toolset: v142
+            configuration: RelWithDebInfo
+            vcvars: -vcvars_ver=14.29
+          - toolset: v143
+            configuration: RelWithDebInfo
+            vcvars: ""
     steps:
     - uses: actions/checkout@v4
       with:
         submodules: true
-    - name: Configure
-      run: cmake -B build/${{matrix.toolset}} -G "Visual Studio 17 2022" -A x64 -T ${{matrix.toolset}}
-    - name: Build
-      run: cmake --build build/${{matrix.toolset}} --config ${{matrix.configuration}} --parallel 1
+    - name: Configure and build
+      shell: cmd
+      run: |
+        call "%ProgramFiles%\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat" ${{matrix.vcvars}}
+        cmake -B build\${{matrix.toolset}} -G Ninja -DCMAKE_BUILD_TYPE=${{matrix.configuration}} -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY=%CD%\build\${{matrix.toolset}}\${{matrix.configuration}}
+        cmake --build build\${{matrix.toolset}} --parallel 1
     - name: Upload
       uses: actions/upload-artifact@v4
       with:
