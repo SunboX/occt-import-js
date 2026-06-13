@@ -62,6 +62,19 @@ describe ('Wasm build configuration', function () {
             'Expected MSVC builds to define NOMINMAX before compiling OCCT Windows sources.'
         );
     });
+
+    it ('links Windows native builds against Winsock', function () {
+        var cmakeLists = fs.readFileSync (
+            path.join (__dirname, '..', 'CMakeLists.txt'),
+            'utf8'
+        );
+
+        assert.match (
+            cmakeLists,
+            /target_link_libraries\s*\(\s*OcctImportJS[\s\S]*ws2_32/,
+            'Expected Windows native builds to link Winsock for OCCT socket helpers.'
+        );
+    });
 });
 
 describe ('GitHub Actions CI configuration', function () {
