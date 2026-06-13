@@ -107,6 +107,16 @@ describe ('GitHub Actions CI configuration', function () {
         );
     });
 
+    it ('limits Windows native build parallelism to avoid MSVC heap exhaustion', function () {
+        var nativeBuildWorkflow = ReadWorkflow ('native_build.yml');
+
+        assert.match (
+            nativeBuildWorkflow,
+            /cmake --build build\/\$\{\{matrix\.toolset\}\} --config \$\{\{matrix\.configuration\}\} --parallel 1/,
+            'Expected Windows native builds to compile serially on GitHub-hosted runners.'
+        );
+    });
+
     it ('runs Windows wasm batch scripts from a short workspace path', function () {
         var wasmBuildWorkflow = ReadWorkflow ('wasm_build.yml');
         var rebuildDistWorkflow = ReadWorkflow ('rebuild_dist.yml');
