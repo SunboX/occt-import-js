@@ -77,6 +77,25 @@ describe ('Wasm build configuration', function () {
     });
 });
 
+describe ('Package metadata', function () {
+    it ('targets the SunboX GitHub package scope and registry', function () {
+        var packageJson = JSON.parse (fs.readFileSync (
+            path.join (__dirname, '..', 'package.json'),
+            'utf8'
+        ));
+
+        assert.strictEqual (packageJson.name, '@sunbox/occt-import-js');
+        assert.deepStrictEqual (packageJson.repository, {
+            type: 'git',
+            url: 'git+https://github.com/SunboX/occt-import-js.git'
+        });
+        assert.strictEqual (
+            packageJson.publishConfig.registry,
+            'https://npm.pkg.github.com'
+        );
+    });
+});
+
 describe ('GitHub Actions CI configuration', function () {
     function ReadWorkflow (fileName)
     {

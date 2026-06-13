@@ -1,10 +1,13 @@
 {
-	"name": "occt-import-js",
+	"name": "@sunbox/occt-import-js",
 	"version": "0.0.25",
 	"description": "Javascript interface for the occt library.",
 	"license": "LGPL-2.1",
 	"main": "./dist/occt-import-js.js",
-	"repository": "github:kovacsv/occt-import-js",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/SunboX/occt-import-js.git"
+	},
 	"keywords": [
 		"3d",
 		"model",
@@ -26,5 +29,8 @@
 	"dependencies": {},
 	"browser": {
 		"fs": false
+	},
+	"publishConfig": {
+		"registry": "https://npm.pkg.github.com"
 	}
 }
