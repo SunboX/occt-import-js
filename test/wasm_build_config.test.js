@@ -223,6 +223,20 @@ describe ('GitHub Actions CI configuration', function () {
         AssertRunsOnShortWindowsDrive (npmPublishWorkflow, 'build_wasm_win_dist.bat');
     });
 
+    it ('does not run duplicate push checks for release tags', function () {
+        var nativeBuildWorkflow = ReadWorkflow ('native_build.yml');
+        var wasmBuildWorkflow = ReadWorkflow ('wasm_build.yml');
+        var rebuildDistWorkflow = ReadWorkflow ('rebuild_dist.yml');
+
+        [nativeBuildWorkflow, wasmBuildWorkflow, rebuildDistWorkflow].forEach (function (workflow) {
+            assert.match (
+                workflow,
+                /push:\s*\n\s*branches:\s*\n\s*-\s*main/,
+                'Expected push checks to run only for main branch pushes.'
+            );
+        });
+    });
+
     it ('publishes the scoped package to GitHub Packages instead of npmjs', function () {
         var npmPublishWorkflow = ReadWorkflow ('npm_publish.yml');
 
