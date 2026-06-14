@@ -1,7 +1,7 @@
 var path = require ('path');
 var createSharedStaticServer = require ('../static_server.js').createStaticServer;
 
-var DefaultRoute = '/examples/esp12_viewer/';
+var DefaultRoute = '/examples/ft601q_viewer/';
 
 function createStaticServer (options)
 {
@@ -13,12 +13,12 @@ function createStaticServer (options)
 }
 
 if (require.main === module) {
-    var port = Number (process.env.PORT || 8090);
+    var port = Number (process.env.PORT || 8091);
     var host = process.env.HOST || '127.0.0.1';
     var server = createStaticServer ();
     server.listen (port, host, function () {
         var address = 'http://' + host + ':' + port + DefaultRoute;
-        console.log ('Serving ESP_12 viewer at ' + address);
+        console.log ('Serving FT601Q viewer at ' + address);
     });
 }
 

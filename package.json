@@ -1,6 +1,6 @@
 {
 	"name": "@sunbox/occt-import-js",
-	"version": "0.0.25",
+	"version": "0.0.26",
 	"description": "Javascript interface for the occt library.",
 	"license": "LGPL-2.1",
 	"main": "./dist/occt-import-js.js",
@@ -23,8 +23,10 @@
 		"start": "http-server",
 		"rebuild:dist": "node tools/rebuild_dist.js",
 		"example:esp12": "node examples/esp12_viewer/server.js",
+		"example:ft601q": "node examples/ft601q_viewer/server.js",
 		"test": "mocha test/test.js test/wasm_build_config.test.js test/rebuild_dist_script.test.js --timeout 20000",
-		"test:esp12-server": "mocha test/esp12_example_server.test.js --timeout 10000"
+		"test:esp12-server": "mocha test/esp12_example_server.test.js --timeout 10000",
+		"test:ft601q-server": "mocha test/ft601q_example_server.test.js --timeout 10000"
 	},
 	"dependencies": {},
 	"browser": {
