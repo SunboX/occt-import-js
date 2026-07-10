@@ -357,7 +357,7 @@ source_group ("OCCT" FILES ${OcctSourceFiles})
 if (${EMSCRIPTEN})
 	add_executable (OcctImportJS ${OcctImportJSSourceFiles} ${OcctSourceFiles})
 	target_compile_options (OcctImportJS PUBLIC "$<$<CONFIG:Debug>:-gsource-map>")
-	target_compile_options (OcctImportJS PUBLIC "$<$<CONFIG:Release>:-Oz>")
+	target_compile_options (OcctImportJS PUBLIC "$<$<CONFIG:Release>:-O3>")
 	target_compile_options (OcctImportJS PUBLIC -fexceptions)
 	target_compile_options (OcctImportJS PUBLIC -fwasm-exceptions)
 

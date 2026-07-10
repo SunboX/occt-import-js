@@ -25,6 +25,25 @@ describe ('Wasm build configuration', function () {
         );
     });
 
+    it ('optimizes Release wasm compilation for execution speed', function () {
+        var cmakeLists = fs.readFileSync (
+            path.join (__dirname, '..', 'CMakeLists.txt'),
+            'utf8'
+        );
+        var emscriptenBlock = cmakeLists.match (/if \(\$\{EMSCRIPTEN\}\)([\s\S]*?)else \(\)/);
+
+        assert (emscriptenBlock, 'Expected to find the EMSCRIPTEN build block.');
+        assert (
+            emscriptenBlock[1].includes ('target_compile_options (OcctImportJS PUBLIC "$<$<CONFIG:Release>:-O3>")'),
+            'Expected Release wasm compilation to optimize for execution speed.'
+        );
+        assert.doesNotMatch (
+            emscriptenBlock[1],
+            /-Oz/,
+            'Expected Release wasm compilation not to optimize for minimum size.'
+        );
+    });
+
     it ('copies import file bytes through a typed array memory view', function () {
         var jsInterface = fs.readFileSync (
             path.join (__dirname, '..', 'occt-import-js', 'src', 'js-interface.cpp'),
