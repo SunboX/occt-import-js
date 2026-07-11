@@ -9,7 +9,6 @@
     <title>OcctImportJS Demo</title>
 
     <script src="https://cdn.jsdelivr.net/npm/three@0.138.3/build/three.min.js"></script>
-    <script type="text/javascript" src="../dist/occt-import-js.js"></script>
     
     <style>
         html, body
@@ -23,12 +22,14 @@
 
 <body>
 
-<script type='text/javascript'>
+<script type='module'>
+
+    import occtImportJs from '../dist/occt-import-js.js';
 
     async function LoadGeometry (targetObject)
     {
         // init occt-import-js
-        const occt = await occtimportjs ();
+        const occt = await occtImportJs ();
         
         // download a step file
         let fileUrl = '../test/testfiles/cax-if/as1_pe_203.stp';

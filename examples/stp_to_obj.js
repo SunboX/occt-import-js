@@ -1,5 +1,5 @@
 let fs = require ('fs');
-const occtimportjs = require ('../dist/occt-import-js.js')();
+let path = require ('path');
 
 class TimeLogger
 {
@@ -16,17 +16,23 @@ class TimeLogger
     }
 }
 
-let args = process.argv.splice (2);
-if (args.length !== 2) {
-    console.log ('Usage: node stp_to_obj.js <stpFilePath> <objFilePath>');
-    process.exit (1);
-}
+async function Main ()
+{
+    let args = process.argv.splice (2);
+    if (args.length !== 2) {
+        console.log ('Usage: node stp_to_obj.js <stpFilePath> <objFilePath>');
+        process.exit (1);
+    }
 
-let stpFilePath = args[0];
-let objFilePath = args[1];
-
-let timeLogger = new TimeLogger ();
-occtimportjs.then ((occt) => {
+    let stpFilePath = args[0];
+    let objFilePath = args[1];
+    let timeLogger = new TimeLogger ();
+    let occtImportJs = (await import ('../dist/occt-import-js.js')).default;
+    let occt = await occtImportJs ({
+        wasmBinary : fs.readFileSync (
+            path.join (__dirname, '..', 'dist', 'occt-import-js.wasm')
+        )
+    });
     timeLogger.LogTime ('Library load');
 
 	let fileContent = fs.readFileSync (stpFilePath);
@@ -86,4 +92,9 @@ occtimportjs.then ((occt) => {
     timeLogger.LogTime ('Obj export');
 
     objWriter.close ();
+}
+
+Main ().catch ((error) => {
+    console.error (error);
+    process.exitCode = 1;
 });

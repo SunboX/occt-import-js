@@ -35,4 +35,40 @@ describe ('Distribution rebuild script', function () {
             }
         );
     });
+
+    it ('copies the browser worker into every rebuilt distribution', function () {
+        var shellScript = fs.readFileSync (
+            path.join (__dirname, '..', 'tools', 'build_wasm_dist.sh'),
+            'utf8'
+        );
+        var windowsScript = fs.readFileSync (
+            path.join (__dirname, '..', 'tools', 'build_wasm_win_dist.bat'),
+            'utf8'
+        );
+
+        assert.match (
+            shellScript,
+            /cp src\/occt-import-js-worker\.js dist\/occt-import-js-worker\.js/
+        );
+        assert.match (
+            windowsScript,
+            /copy src\\occt-import-js-worker\.js dist\\occt-import-js-worker\.js/
+        );
+        assert.match (
+            shellScript,
+            /cp src\/dist-package\.json dist\/package\.json/
+        );
+        assert.match (
+            windowsScript,
+            /copy src\\dist-package\.json dist\\package\.json/
+        );
+        assert.match (
+            shellScript,
+            /cp occt\/OCCT_LGPL_EXCEPTION\.txt dist\/OCCT_LGPL_EXCEPTION\.txt/
+        );
+        assert.match (
+            windowsScript,
+            /copy occt\\OCCT_LGPL_EXCEPTION\.txt dist\\OCCT_LGPL_EXCEPTION\.txt/
+        );
+    });
 });

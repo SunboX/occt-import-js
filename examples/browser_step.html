@@ -6,19 +6,16 @@
     <meta name="viewport" content="width=device-width, user-scalable=no">
 
     <title>OcctImportJS Demo</title>
-    <script type="text/javascript" src="../dist/occt-import-js.js"></script>
-    
-    <script type='text/javascript'>
-        window.onload = function () {
-occtimportjs ().then (async function (occt) {
-	let fileUrl = '../test/testfiles/simple-basic-cube/cube.stp';
-	let response = await fetch (fileUrl);
-	let buffer = await response.arrayBuffer ();
-	let fileBuffer = new Uint8Array (buffer);
-	let result = occt.ReadStepFile (fileBuffer, null);
-	console.log (result);
-});
-        };
+    <script type='module'>
+        import occtImportJs from '../dist/occt-import-js.js';
+
+        let occt = await occtImportJs ();
+        let fileUrl = '../test/testfiles/simple-basic-cube/cube.stp';
+        let response = await fetch (fileUrl);
+        let buffer = await response.arrayBuffer ();
+        let fileBuffer = new Uint8Array (buffer);
+        let result = occt.ReadStepFile (fileBuffer, null);
+        console.log (result);
     </script>
 </head>
 

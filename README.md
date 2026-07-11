@@ -20,14 +20,16 @@ npm install @sunbox/occt-import-js
 
 The library runs in the browser and as a node.js module as well.
 
-You will need two files from the `dist` folder: `occt-import-js.js` and `occt-import-js.wasm`. The wasm file is loaded runtime by the js file. There are three public functions in the library:
+The `dist` folder contains the ESM factory, its WASM binary, and a reusable browser worker. Keep those files together when serving them. There are four public functions in the library:
 
+- `ReadFile` to import a file by format name.
 - `ReadBrepFile` to import brep file.
 - `ReadStepFile` to import step file.
 - `ReadIgesFile` to import iges file.
 
-All functions have two parameters:
+The format-specific functions have two parameters. `ReadFile` takes the format name first and then the same two parameters:
 
+- `format`: The lowercase format name, for example `step`, `iges`, or `brep`; used only by `ReadFile`.
 - `content`: The file content as a `Uint8Array` object.
 - `params`: Triangulation parameters as an object, can be `null`.
   - `linearUnit`: Defines the linear unit of the output. Possible values: `millimeter`, `centimeter`, `meter`, `inch`, `foot`. Default is `millimeter`. Has no effect on brep files.
@@ -41,39 +43,54 @@ You can find more information about deflection values [here](https://dev.opencas
 
 ### Use from the browser
 
-First, include the `occt-import-js.js` file in your website.
+Import the generated ESM factory. It resolves `occt-import-js.wasm` relative to the module URL.
 
 ```html
-<script type="text/javascript" src="occt-import-js.js"></script>
+<script type="module">
+    import occtImportJs from './dist/occt-import-js.js'
+
+    const response = await fetch('./cube.stp')
+    const fileBuffer = new Uint8Array(await response.arrayBuffer())
+    const occt = await occtImportJs()
+    const result = occt.ReadStepFile(fileBuffer, null)
+    console.log(result)
+</script>
 ```
 
-After that, download the model file, and pass them to occt-import-js.
+### Use in a browser worker
+
+The packaged worker loads and caches the ESM factory, WASM bytes, and OCCT instance. It accepts `{ format, buffer, params }` messages and posts the import result. Transfer the typed array's backing buffer to avoid copying large CAD files.
 
 ```js
-occtimportjs ().then (async function (occt) {
-    let fileUrl = '../test/testfiles/simple-basic-cube/cube.stp';
-    let response = await fetch (fileUrl);
-    let buffer = await response.arrayBuffer ();
-    let fileBuffer = new Uint8Array (buffer);
-    let result = occt.ReadStepFile (fileBuffer, null);
-    console.log (result);
-});
+const worker = new Worker(
+    './node_modules/@sunbox/occt-import-js/dist/occt-import-js-worker.js'
+)
+
+worker.onmessage = ({ data }) => console.log(data)
+
+const response = await fetch('./cube.stp')
+const buffer = new Uint8Array(await response.arrayBuffer())
+worker.postMessage({ format: 'step', buffer, params: null }, [buffer.buffer])
 ```
 
-### Use as a node.js module
+The worker, ESM module, and WASM file must be served from the same directory. Query parameters on the worker URL are also applied to the sibling assets, which allows one cache-busting version across all three files.
 
-You should require the `@sunbox/occt-import-js` module in your script.
+### Use as a Node.js ES module
+
+The package entrypoint is ESM. In Node.js, provide the WASM bytes explicitly because the generated runtime targets browsers.
 
 ```js
-let fs = require ('fs');
-const occtimportjs = require ('@sunbox/occt-import-js')();
+import fs from 'node:fs'
+import occtImportJs from '@sunbox/occt-import-js'
 
-occtimportjs.then ((occt) => {
-    let fileUrl = '../test/testfiles/simple-basic-cube/cube.stp';
-    let fileContent = fs.readFileSync (fileUrl);
-    let result = occt.ReadStepFile (fileContent, null);
-    console.log (result);
-});
+const moduleUrl = import.meta.resolve('@sunbox/occt-import-js')
+const wasmBinary = fs.readFileSync(
+    new URL('./occt-import-js.wasm', moduleUrl)
+)
+const occt = await occtImportJs({ wasmBinary })
+const fileContent = fs.readFileSync('./cube.stp')
+const result = occt.ReadStepFile(fileContent, null)
+console.log(result)
 ```
 
 ### Processing the result

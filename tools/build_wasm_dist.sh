@@ -20,7 +20,10 @@ npm run test
 mkdir -p dist
 cp build/wasm/Release/occt-import-js.js dist/occt-import-js.js
 cp build/wasm/Release/occt-import-js.wasm dist/occt-import-js.wasm
+cp src/occt-import-js-worker.js dist/occt-import-js-worker.js
+cp src/dist-package.json dist/package.json
 cp occt/LICENSE_LGPL_21.txt dist/license.occt.txt
+cp occt/OCCT_LGPL_EXCEPTION.txt dist/OCCT_LGPL_EXCEPTION.txt
 cp LICENSE.md dist/license.occt-import-js.txt
 
 echo "Distribution Succeeded."
