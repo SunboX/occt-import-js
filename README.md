@@ -8,6 +8,19 @@ The [emscripten](https://emscripten.org) interface for [OpenCascade](https://www
 
 See it in action in [Online 3D Viewer](https://3dviewer.net/#model=https://dl.dropbox.com/s/utieopxrxwujgmd/as1_pe_203.stp), or check [this fiddle](https://jsfiddle.net/kovacsv/rzhq9gxj) for a code example.
 
+## 0.0.28 release
+
+Version 0.0.28 ships an ESM factory and reusable module worker, builds the
+release WASM with `-O3`, and caches the factory, WASM bytes, and OCCT instance
+across imports. The repository STEP benchmark improved from a 1674 ms median
+in 0.0.25 to 975 ms in 0.0.28, a 41.7% reduction.
+
+This is an intentional compatibility change: use an ESM import or the packaged
+worker. Classic-script globals, CommonJS `require()`, and `importScripts` are
+not supported by the 0.0.28 runtime. See the
+[0.0.28 release notes](docs/release-notes-v0.0.28.md) for the complete API,
+worker, build, and migration details.
+
 ## How to install?
 
 You can get `@sunbox/occt-import-js` from [npm](https://www.npmjs.com/package/@sunbox/occt-import-js):
